@@ -1,6 +1,10 @@
 import streamlit as st
 from app_methods import *
 
+# Desing Application name on browser and default settings
+st.set_page_config(page_title="Text Analysis Tool",
+                   page_icon='📊',
+                   initial_sidebar_state='expanded')
 
 
 def main():
