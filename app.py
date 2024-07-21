@@ -2,6 +2,8 @@ import streamlit as st
 import streamlit.components.v1 as stc
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")
 import seaborn as sns
 import spacy
 nlp = spacy.load('en_core_web_sm')
@@ -25,23 +27,27 @@ def text_analyzer(my_textt):
                      columns=['Token', 'Shape', 'PoS', 'Tag', 'Lemma', 'Is_Alpha', 'Is_Stopword'])
     return df
 
+
 # Funct to extract entities from raw data
 def get_entities(my_text):
     docx = nlp(my_text)
     entities = [(entity.text, entity.label_) for entity in docx.ents]
     return entities
 
+
 # Func to get most common tokens
-def get_most_common_tokens(my_text, num=4):
+def get_most_common_tokens(my_text, num=5):
     word_tokens = Counter(my_text.split(' '))
     most_common_tokens = dict(word_tokens.most_common(num))
     return most_common_tokens
+
 
 # Func to get sentiment 
 def get_sentiment(my_text):
     blob = TextBlob(my_text)
     sentiment = blob.sentiment
     return sentiment
+
 
 def main():
     st.title("NLP Application With Streamlit")
@@ -72,7 +78,6 @@ def main():
                 st.write(entity_res, height=500, scrolling=True)
 
 
-
             # Desing Layout
             col1, col2 = st.columns(2) # Number of columns
 
@@ -94,9 +99,18 @@ def main():
 
             with col2:
                 with st.expander("Plot Word's Frequency"):
-                    pass
+                    fig = plt.figure()
+                    top_key_words = get_most_common_tokens(processed_text)
+                    plt.bar(key_words.keys(),
+                            top_key_words.values() )
+                    st.pyplot(fig)
+
                 with st.expander("Plot Part Of Speech"):
-                    pass
+                    fig = plt.figure()
+                    sns.countplot(x=token_res_df['PoS'], palette='viridis')
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig)
+
                 with st.expander("Plot WordCloud"):
                     pass
 
