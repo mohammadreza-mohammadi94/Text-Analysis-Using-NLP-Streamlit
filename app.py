@@ -11,7 +11,7 @@ from textblob import TextBlob
 import neattext as nt
 import neattext.functions as nfx
 from collections import Counter
-
+from wordcloud import WordCloud
 
 #! Functions
 # This method will be used for text analysis
@@ -49,6 +49,16 @@ def get_sentiment(my_text):
     return sentiment
 
 
+# Get words for WordCloud
+def plot_wordcloud(my_text):
+    wc = WordCloud().generate(my_text)
+    fig = plt.figure()
+    plt.imshow(wc, interpolation='bilinear')
+    plt.axis('off')
+    st.pyplot(fig)
+
+
+
 def main():
     st.title("NLP Application With Streamlit")
 
@@ -61,7 +71,7 @@ def main():
         st.subheader("Home: Analyse Text")
 
         # Text Area to receive text from user
-        raw_text = st.text_area("Enter Text Here...")
+        raw_text = st.text_area("Enter Text Here...", height=250)
         # To Chose number of tokens to be processed by NLP Model
         num_most_common = st.sidebar.number_input("Most Common Tokesn", 1, 10)
 
@@ -90,7 +100,7 @@ def main():
                 with st.expander("Top Keywords"):
                     st.info("Top Keywords/Tokens")
                     processed_text = nfx.remove_stopwords(raw_text)
-                    key_words = get_most_common_tokens(processed_text)
+                    key_words = get_most_common_tokens(processed_text, num_most_common)
                     st.write(key_words)
 
                 with st.expander("Sentiment"):
@@ -100,7 +110,7 @@ def main():
             with col2:
                 with st.expander("Plot Word's Frequency"):
                     fig = plt.figure()
-                    top_key_words = get_most_common_tokens(processed_text)
+                    top_key_words = get_most_common_tokens(processed_text, num_most_common)
                     plt.bar(key_words.keys(),
                             top_key_words.values() )
                     st.pyplot(fig)
@@ -112,7 +122,7 @@ def main():
                     st.pyplot(fig)
 
                 with st.expander("Plot WordCloud"):
-                    pass
+                    plot_wordcloud(raw_text)
 
             with st.expander("Download Text Analysis Result"):
                 pass
