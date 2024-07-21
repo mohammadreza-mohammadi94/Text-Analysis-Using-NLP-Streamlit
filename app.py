@@ -1,246 +1,102 @@
 import streamlit as st
-import streamlit.components.v1 as stc
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use("Agg")
-import seaborn as sns
-import spacy
-nlp = spacy.load('en_core_web_sm')
-from textblob import TextBlob
-import neattext as nt
-import neattext.functions as nfx
-from collections import Counter
-import base64
-import time
-from wordcloud import WordCloud
-import docx2txt
-from PyPDF2 import PdfReader
+from app_methods import *
 
-
-# Time Format
-timestr = time.strftime("%Y%m%d-%H%M%S")
-
-
-#! Functions
-# This method will be used for text analysis
-def text_analyzer(my_textt):
-    docx = nlp(my_textt)
-    all_data = [(token.text, token.shape_,
-                 token.pos_, token.tag_, 
-                 token.lemma_, token.is_alpha,
-                 token.is_stop) for token in docx]
-
-    # Create dataframe
-    df = pd.DataFrame(all_data,
-                     columns=['Token', 'Shape', 'PoS', 'Tag', 'Lemma', 'Is_Alpha', 'Is_Stopword'])
-    return df
-
-
-# Funct to extract entities from raw data
-def get_entities(my_text):
-    docx = nlp(my_text)
-    entities = [(entity.text, entity.label_) for entity in docx.ents]
-    return entities
-
-
-# Func to get most common tokens
-def get_most_common_tokens(my_text, num=5):
-    word_tokens = Counter(my_text.split(' '))
-    most_common_tokens = dict(word_tokens.most_common(num))
-    return most_common_tokens
-
-
-# Func to get sentiment 
-def get_sentiment(my_text):
-    blob = TextBlob(my_text)
-    sentiment = blob.sentiment
-    return sentiment
-
-
-# Get words for WordCloud
-def plot_wordcloud(my_text):
-    wc = WordCloud().generate(my_text)
-    fig = plt.figure()
-    plt.imshow(wc, interpolation='bilinear')
-    plt.axis('off')
-    st.pyplot(fig)
-
-
-
-# Func to download results
-def download(data):
-    csvfile = data.to_csv(index=False)
-    b64 = base64.b64encode(csvfile.encode()).decode()
-    new_file_name = f'nlp_result_{timestr}_.csv'
-    st.markdown('### ⬇️ Download CSV File ⬇️')
-    href = f'<a href="data:file/csv;base64, {b64}" download="{new_file_name}">Click Here !!</a>'
-    st.markdown(href, unsafe_allow_html=True)
-
-
-# Func to read PDF
-def read_pdf(file):
-    pdf_reader = PdfReader(file)
-    count = len(pdf_reader.pages)
-    all_page_text = ""
-    for i in range(count):
-        page = pdf_reader.pages[i]
-        all_page_text += page.extract_text()
-
-    return all_page_text
 
 
 def main():
-    st.title("NLP Application With Streamlit")
+    """
+    Main function to run the Streamlit NLP application.
+    
+    This function sets up the Streamlit interface with a sidebar menu
+    and handles user interactions for text analysis or file uploads.
+    """
 
-    # Desing Menu
-    menu = ['Home', 'NLP(Files)', "About"]
-    choice = st.sidebar.selectbox("Menu", menu)
+    st.title("NLP Application With Streamlit") # Title of the app
 
-    # Condition to manage Menu
-    if choice == "Home":
-        st.subheader("Home: Analyse Text")
+    # Design Menu
+    menu = ['Text Analysis Dashboard', 'File-Based NLP Analysis', "About This Application"]
+    choice = st.sidebar.selectbox("Menu", menu) # Sidebar menu for navigation
 
-        # Text Area to receive text from user
+    if choice == "Text Analysis Dashboard":
+        st.subheader("Analyze Text")
+        # Text area for user to input text
         raw_text = st.text_area("Enter Text Here...", height=250)
-        # To Chose number of tokens to be processed by NLP Model
-        num_most_common = st.sidebar.number_input("Most Common Tokesn", 1, 10)
 
+        # Sidebar input to choose the number of most common tokens to display
+        num_most_common = st.sidebar.number_input("Most Common Tokens", 1, 10)
+
+        # Button to trigger text analysis
         if st.button("Analyze"):
-            with st.expander("Original Text"):
-                st.write(raw_text)
+            analyze_text(raw_text, num_most_common) # Call function to analyze text
 
-            with st.expander("Text Analysis"):
-                token_res_df = text_analyzer(raw_text)
-                st.dataframe(token_res_df)
+    elif choice == "File-Based NLP Analysis":
+        st.subheader("Upload and Analyze Text Files")
+        # File uploader to allow users to upload text files (PDF, DOCX, TXT)
+        text_file = st.file_uploader("Upload Files", type=['pdf', 'docx', 'txt'])
 
-            with st.expander("Entities"):
-                entity_res = get_entities(raw_text)
-                st.write(entity_res, height=500, scrolling=True)
+        # Sidebar input to choose the number of most common tokens to display
+        num_most_common = st.sidebar.number_input("Most Common Tokens", 1, 10)
 
-
-            # Desing Layout
-            col1, col2 = st.columns(2) # Number of columns
-
-            with col1:
-                with st.expander("Word Stats"):
-                    st.info("Word Statistics")
-                    docx = nt.TextFrame(raw_text)
-                    st.write(docx.word_stats())
-
-                with st.expander("Top Keywords"):
-                    st.info("Top Keywords/Tokens")
-                    processed_text = nfx.remove_stopwords(raw_text)
-                    key_words = get_most_common_tokens(processed_text, num_most_common)
-                    st.write(key_words)
-
-                with st.expander("Sentiment"):
-                    sent_res = get_sentiment(raw_text)
-                    st.write(sent_res)
-
-            with col2:
-                with st.expander("Plot Word's Frequency"):
-                    fig = plt.figure()
-                    top_key_words = get_most_common_tokens(processed_text, num_most_common)
-                    plt.bar(key_words.keys(),
-                            top_key_words.values() )
-                    st.pyplot(fig)
-
-                with st.expander("Plot Part Of Speech"):
-                    fig = plt.figure()
-                    sns.countplot(x=token_res_df['PoS'], palette='viridis')
-                    plt.xticks(rotation=45)
-                    st.pyplot(fig)
-
-                with st.expander("Plot WordCloud"):
-                    plot_wordcloud(raw_text)
-
-            with st.expander("Download Text Analysis Result"):
-                download(token_res_df)
-
-
-    # Manage (NLP Files)
-    elif choice == "NLP(Files)":
-        st.subheader("NLP Task") 
-
-        text_file = st.file_uploader("Upload Files", 
-                                     type=['pdf', 'docx', 'txt'])
-        num_most_common = st.sidebar.number_input("Most Common Tokesn", 1, 10)
-
+        # Check if a file is uploaded
         if text_file is not None:
-            # check condition for pdf files
-            if text_file.type == 'application/pdf':
-                raw_text = read_pdf(text_file)
-                st.write(raw_text)
-
-            # check condition for text files
-            elif text_file.type == 'text/plain':
-                raw_text = str(text_file.read(), encoding='utf-8')
-                st.write(raw_text)
-
-            # else is docx
-            else:
-                raw_text = docx2txt.process(text_file)
-                st.write(raw_text)
-
-            with st.expander("Original Text"):
-                st.write(raw_text)
-
-            with st.expander("Text Analysis"):
-                token_res_df = text_analyzer(raw_text)
-                st.dataframe(token_res_df)
-
-            with st.expander("Entities"):
-                entity_res = get_entities(raw_text)
-                st.write(entity_res, height=500, scrolling=True)
+            raw_text = handle_uploaded_file(text_file) # Call function to handle uploaded file
+            analyze_text(raw_text, num_most_common) # Call function to analyze text
 
 
-            # Desing Layout
-            col1, col2 = st.columns(2) # Number of columns
-
-            with col1:
-                with st.expander("Word Stats"):
-                    st.info("Word Statistics")
-                    docx = nt.TextFrame(raw_text)
-                    st.write(docx.word_stats())
-
-                with st.expander("Top Keywords"):
-                    st.info("Top Keywords/Tokens")
-                    processed_text = nfx.remove_stopwords(raw_text)
-                    key_words = get_most_common_tokens(processed_text, num_most_common)
-                    st.write(key_words)
-
-                with st.expander("Sentiment"):
-                    sent_res = get_sentiment(raw_text)
-                    st.write(sent_res)
-
-            with col2:
-                with st.expander("Plot Word's Frequency"):
-                    fig = plt.figure()
-                    top_key_words = get_most_common_tokens(processed_text, num_most_common)
-                    plt.bar(key_words.keys(),
-                            top_key_words.values() )
-                    st.pyplot(fig)
-
-                with st.expander("Plot Part Of Speech"):
-                    try:
-                        fig = plt.figure()
-                        sns.countplot(x=token_res_df['PoS'], palette='viridis')
-                        plt.xticks(rotation=45)
-                        st.pyplot(fig)
-                    except:
-                        st.warning("Insuffiecient Data")
-
-                with st.expander("Plot WordCloud"):
-                    plot_wordcloud(raw_text)
-
-            with st.expander("Download Text Analysis Result"):
-                download(token_res_df)
-
-
-    # About Page
+    # About section
     else:
-        st.subheader("About")
+        st.write("""
+        Welcome to the NLP Application with Streamlit!
+
+        This interactive application is designed to provide comprehensive text analysis using Natural Language Processing (NLP) techniques. Whether you're a data scientist, researcher, or simply curious about text analysis, this tool offers a user-friendly platform to explore various aspects of text data.
+        """)
+
+        st.subheader("Key Features:")
+
+        st.markdown("""
+        1. **Text Analysis Dashboard:**
+           - Enter your text directly into the application and receive detailed insights.
+           - Analyze the structure and components of your text, including tokenization, part-of-speech tagging, and lemmatization.
+           - Identify named entities (such as names, locations, and organizations) within your text.
+
+        2. **File-Based NLP Analysis:**
+           - Upload text files in PDF, DOCX, or TXT formats for analysis.
+           - Extract and process text from uploaded files seamlessly.
+           - Perform the same in-depth analysis as the Text Analysis Dashboard on your file content.
+
+        3. **Comprehensive Visualizations:**
+           - Generate visual representations of word frequencies, part-of-speech distributions, and more.
+           - Create word clouds to visualize the most prominent words in your text.
+           - Interactive charts and graphs to help you understand your data better.
+
+        4. **Sentiment Analysis:**
+           - Determine the sentiment of your text using advanced algorithms.
+           - Gain insights into the overall tone and emotional impact of the content.
+
+        5. **Downloadable Results:**
+           - Export your analysis results as CSV files for further use and documentation.
+           - Download visualizations for reports and presentations.
+        """)
+
+        st.write("""
+        This application leverages powerful libraries and tools, including SpaCy for NLP, TextBlob for sentiment analysis, and Seaborn and Matplotlib for data visualization. With its intuitive interface and robust functionalities, our NLP application aims to make text analysis accessible and insightful for everyone.
+
+        We hope you find this tool valuable and insightful. For any questions, feedback, or further information, please feel free to reach out.
+        """)
+
+        st.subheader("About the Developer")
+
+        st.write("""
+        This NLP Application was developed by Mohammadreza Mohammadi, a passionate software developer and data scientist.
+                With a strong background in Natural Language Processing and data visualization.
+        - **LinkedIn:** [LinkedIn Profile](https://www.linkedin.com/in/mohammadreza-mohammadi-24a3a61b3/)
+        - **GitHub:** [GitHub Profile](https://github.com/mohammadreza-mohammadi94)
+        - **Email:** mr.mhmdi93@gmail.com
+
+        For any inquiries or collaboration opportunities, feel free to connect through the above channels.
+        """)
+
+
 
 
 if __name__ == '__main__':
