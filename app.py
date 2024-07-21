@@ -11,7 +11,12 @@ from textblob import TextBlob
 import neattext as nt
 import neattext.functions as nfx
 from collections import Counter
+import base64
+import time
 from wordcloud import WordCloud
+
+# Time Format
+timestr = time.strftime("%Y%m%d-%H%M%S")
 
 #! Functions
 # This method will be used for text analysis
@@ -56,6 +61,17 @@ def plot_wordcloud(my_text):
     plt.imshow(wc, interpolation='bilinear')
     plt.axis('off')
     st.pyplot(fig)
+
+
+
+# Func to download results
+def download(data):
+    csvfile = data.to_csv(index=False)
+    b64 = base64.b64encode(csvfile.encode()).decode()
+    new_file_name = f'nlp_result_{timestr}_.csv'
+    st.markdown('### Download CSV File')
+    href = f'<a href="data:file/csv;base64, {b64}" download="{new_file_name}">Click Here !!</a>'
+    st.markdown(href, unsafe_allow_html=True)
 
 
 
@@ -125,7 +141,7 @@ def main():
                     plot_wordcloud(raw_text)
 
             with st.expander("Download Text Analysis Result"):
-                pass
+                download(token_res_df)
 
 
     # Manage (NLP Files)
