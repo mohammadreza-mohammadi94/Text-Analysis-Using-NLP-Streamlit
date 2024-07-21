@@ -14,9 +14,13 @@ from collections import Counter
 import base64
 import time
 from wordcloud import WordCloud
+import docx2txt
+from PyPDF2 import PdfReader
+
 
 # Time Format
 timestr = time.strftime("%Y%m%d-%H%M%S")
+
 
 #! Functions
 # This method will be used for text analysis
@@ -69,10 +73,21 @@ def download(data):
     csvfile = data.to_csv(index=False)
     b64 = base64.b64encode(csvfile.encode()).decode()
     new_file_name = f'nlp_result_{timestr}_.csv'
-    st.markdown('### Download CSV File')
+    st.markdown('### ⬇️ Download CSV File ⬇️')
     href = f'<a href="data:file/csv;base64, {b64}" download="{new_file_name}">Click Here !!</a>'
     st.markdown(href, unsafe_allow_html=True)
 
+
+# Func to read PDF
+def read_pdf(file):
+    pdf_reader = PdfReader(file)
+    count = len(pdf_reader.pages)
+    all_page_text = ""
+    for i in range(count):
+        page = pdf_reader.pages[i]
+        all_page_text += page.extract_text()
+
+    return all_page_text
 
 
 def main():
@@ -146,8 +161,83 @@ def main():
 
     # Manage (NLP Files)
     elif choice == "NLP(Files)":
-        st.subheader("NLP Task")
-    
+        st.subheader("NLP Task") 
+
+        text_file = st.file_uploader("Upload Files", 
+                                     type=['pdf', 'docx', 'txt'])
+        num_most_common = st.sidebar.number_input("Most Common Tokesn", 1, 10)
+
+        if text_file is not None:
+            # check condition for pdf files
+            if text_file.type == 'application/pdf':
+                raw_text = read_pdf(text_file)
+                st.write(raw_text)
+
+            # check condition for text files
+            elif text_file.type == 'text/plain':
+                raw_text = str(text_file.read(), encoding='utf-8')
+                st.write(raw_text)
+
+            # else is docx
+            else:
+                raw_text = docx2txt.process(text_file)
+                st.write(raw_text)
+
+            with st.expander("Original Text"):
+                st.write(raw_text)
+
+            with st.expander("Text Analysis"):
+                token_res_df = text_analyzer(raw_text)
+                st.dataframe(token_res_df)
+
+            with st.expander("Entities"):
+                entity_res = get_entities(raw_text)
+                st.write(entity_res, height=500, scrolling=True)
+
+
+            # Desing Layout
+            col1, col2 = st.columns(2) # Number of columns
+
+            with col1:
+                with st.expander("Word Stats"):
+                    st.info("Word Statistics")
+                    docx = nt.TextFrame(raw_text)
+                    st.write(docx.word_stats())
+
+                with st.expander("Top Keywords"):
+                    st.info("Top Keywords/Tokens")
+                    processed_text = nfx.remove_stopwords(raw_text)
+                    key_words = get_most_common_tokens(processed_text, num_most_common)
+                    st.write(key_words)
+
+                with st.expander("Sentiment"):
+                    sent_res = get_sentiment(raw_text)
+                    st.write(sent_res)
+
+            with col2:
+                with st.expander("Plot Word's Frequency"):
+                    fig = plt.figure()
+                    top_key_words = get_most_common_tokens(processed_text, num_most_common)
+                    plt.bar(key_words.keys(),
+                            top_key_words.values() )
+                    st.pyplot(fig)
+
+                with st.expander("Plot Part Of Speech"):
+                    try:
+                        fig = plt.figure()
+                        sns.countplot(x=token_res_df['PoS'], palette='viridis')
+                        plt.xticks(rotation=45)
+                        st.pyplot(fig)
+                    except:
+                        st.warning("Insuffiecient Data")
+
+                with st.expander("Plot WordCloud"):
+                    plot_wordcloud(raw_text)
+
+            with st.expander("Download Text Analysis Result"):
+                download(token_res_df)
+
+
     # About Page
     else:
         st.subheader("About")
